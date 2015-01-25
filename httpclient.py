@@ -41,13 +41,14 @@ class HTTPClient(object):
 
 		#default
 		host = "localhost"
-		port = 8080
+		port = 80
+		path = "/"
 		
 		if (url[:7]=="http://"):
 			host = url[7:]
 			url = url[7:]
 			
-		portRE = re.compile('(.*)\:(\d*).*')
+		portRE = re.compile('(.*)\:(\d*)(.*)')
 		portMatch = portRE.match(url)
 		
 		if(not portMatch):
@@ -55,11 +56,12 @@ class HTTPClient(object):
 		else:
 			host = portMatch.group(1)
 			port = int(portMatch.group(2))
+			path = portMatch.group(3)
 		
 		print "HOST: "+host
 		print "PORT: %d"%port
 		
-		return host, port	
+		return host, port, path	
 
 	# connects to a given host and returns a socket descriptor
 	def connect(self, host, port):
@@ -88,7 +90,7 @@ class HTTPClient(object):
 		if(not codeMatch):
 			print("Invalid header")
 		else:
-			code = codeMatch.group(2)
+			code = int(codeMatch.group(2))
 		return code
 
 	def get_headers(self,data):
@@ -101,7 +103,7 @@ class HTTPClient(object):
 	def recvall(self,sock):
 		data = sock.recv(1024)
 		print(data)
-		return self.get_code(data)
+		return data
 		
 		'''
 		buffer = bytearray()
@@ -119,28 +121,35 @@ class HTTPClient(object):
 		
 	def GET(self, url, args=None):
 		
-		(host, port) = self.get_host_port(url)
+		(host, port, path) = self.get_host_port(url)
 		
-		print("\nTry sending GET to "+host+" on port %d"%port)
+		print("\nTry sending GET "+path+" to "+host+" on port %d"%port)
 		
 		# start a connection with the given host
 		sock = self.connect(host, port)
 		
 		# send message to host
-		sock.sendall("GET / HTTP/1.1\r\nHost: "+host+":%d\r\n\r\n"%port)
-		
-		code = self.recvall(sock)
-		body = "body test"
+		message = ("GET "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\n\r\n"%port)
+		print("Message sent: \n"+ message+"\n\n")
+		sock.sendall(message)
+		data = self.recvall(sock)
+		code = self.get_code(data)
+		body = data
 		
 		# close the connection
 		sock.close
+		print("\nSocket closed")
+		
 		return HTTPRequest(code, body)
 
 	# TODO fix this
 	def POST(self, url, args=None):
+		return self.GET(url)
+		'''
 		code = 500
 		body = "post test"
 		return HTTPRequest(code, body)
+		'''
 
 	# send to GET or POST function, depending on command
 	def command(self, url, command="GET", args=None):
@@ -165,7 +174,7 @@ if __name__ == "__main__":
 		url = sys.argv[2]
 		
 		http_request = client.command(url, request_type)
-		print("\nHTTPRequest code: "+ http_request.code)
+		print("\nHTTPRequest code: %d" %http_request.code)
 		print("\nHTTPRequest body: " + http_request.body + "\n")
 		
 	
