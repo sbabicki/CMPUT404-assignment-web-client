@@ -23,6 +23,7 @@ import socket
 import re
 # you may use urllib to encode data appropriately
 import urllib
+import re
 
 # message for too many args
 def help():
@@ -35,26 +36,60 @@ class HTTPRequest(object):
 
 
 class HTTPClient(object):
-	#def get_host_port(self,url):
+	
+	def get_host_port(self,url):
+
+		#default
+		host = "localhost"
+		port = 8080
+		
+		if (url[:7]=="http://"):
+			host = url[7:]
+			url = url[7:]
+			
+		portRE = re.compile('(.*)\:(\d*).*')
+		portMatch = portRE.match(url)
+		
+		if(not portMatch):
+			host = url
+		else:
+			host = portMatch.group(1)
+			port = int(portMatch.group(2))
+		
+		print "HOST: "+host
+		print "PORT: %d"%port
+		
+		return host, port	
 
 	# connects to a given host and returns a socket descriptor
 	def connect(self, host, port):
 		
-		# self.socket is the socket descriptor 
-		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		# store the socket descriptor 
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		
 		# get the ip address of a given remote host
-		remote_ip = socket.gethostbyname(host)
-	
+		(s, b, ip) = socket.gethostbyname_ex(host)
+		remote_ip = ip[0]
+		print remote_ip
 		# connect to ip on a given port
-		self.socket.connect((remote_ip, port))
+		sock.connect((remote_ip, port))
 		print ("\nSocket connected to "+host+" (IP address: "+remote_ip+") on port %d\n" %port)
-		
-		return self.socket
+
+		return sock
 		
 
 	def get_code(self, data):
-		return None
+		
+		# bad request code is default 
+		code = 400
+		codeRE = re.compile('HTTP/1\.(0|1) (\d*) .*')
+		codeMatch = codeRE.match(data)
+		
+		if(not codeMatch):
+			print("Invalid header")
+		else:
+			code = codeMatch.group(2)
+		return code
 
 	def get_headers(self,data):
 		return None
@@ -63,27 +98,51 @@ class HTTPClient(object):
 		return None
 
 	# read everything from the socket
-	def recvall(self):
+	def recvall(self,sock):
+		data = sock.recv(1024)
+		print(data)
+		return self.get_code(data)
+		
+		'''
 		buffer = bytearray()
 		done = False
+		
 		while not done:
-			part = self.socket.recv(1024)
+			part = sock.recv(1024)
 			if (part):
 				buffer.extend(part)
 			else:
 				done = not part
+				
 		return str(buffer)
-
+		'''
+		
 	def GET(self, url, args=None):
-		code = 500
-		body = ""
+		
+		(host, port) = self.get_host_port(url)
+		
+		print("\nTry sending GET to "+host+" on port %d"%port)
+		
+		# start a connection with the given host
+		sock = self.connect(host, port)
+		
+		# send message to host
+		sock.sendall("GET / HTTP/1.1\r\nHost: "+host+":%d\r\n\r\n"%port)
+		
+		code = self.recvall(sock)
+		body = "body test"
+		
+		# close the connection
+		sock.close
 		return HTTPRequest(code, body)
 
+	# TODO fix this
 	def POST(self, url, args=None):
 		code = 500
-		body = ""
+		body = "post test"
 		return HTTPRequest(code, body)
 
+	# send to GET or POST function, depending on command
 	def command(self, url, command="GET", args=None):
 		if (command == "POST"):
 			return self.POST( url, args )
@@ -101,22 +160,22 @@ if __name__ == "__main__":
 		
 	# 2 args given
 	elif (len(sys.argv) == 3):
-		print client.command( sys.argv[1], sys.argv[2] )
-
-		request_type = sys.argv[1]
-		host = sys.argv[2]
 		
-		print("Try sending "+request_type+" to "+host)
-		# start a connection with the given host
-		sock = client.connect(host, 80)
+		request_type = sys.argv[1]
+		url = sys.argv[2]
+		
+		http_request = client.command(url, request_type)
+		print("\nHTTPRequest code: "+ http_request.code)
+		print("\nHTTPRequest body: " + http_request.body + "\n")
 		
 	
 	# TODO fix this
 	# more than 2 args given
 	else:
-		print client.command( command, sys.argv[1] )
-		print (command, sys.argv[1])	
+		help()
+		sys.exit(1)
+		#print client.command( command, sys.argv[1] )
+		#print (command, sys.argv[1])	
 	
-	# close the connection
-	sock.close
+	
 	
