@@ -37,6 +37,7 @@ class HTTPRequest(object):
 
 class HTTPClient(object):
 	
+	# returns the host, port, and path from a given url
 	def get_host_port(self,url):
 
 		#default
@@ -44,81 +45,117 @@ class HTTPClient(object):
 		port = 80
 		path = "/"
 		
+		# remove the "http://" begining if it exists
 		if (url[:7]=="http://"):
-			host = url[7:]
 			url = url[7:]
-			
+			host = url
+		
+		# separate the host port and path	
 		portRE = re.compile('(.*)\:(\d*)(.*)')
 		portMatch = portRE.match(url)
 		
+		# if no port, separate the host and path (separated by "/")
 		if(not portMatch):
-			host = url
+			pathRE = re.compile('(.*?)(/.*)')
+			pathMatch = pathRE.match(url)
+			
+			# no path specified
+			if(not pathMatch):
+				host = url
+			
+			# extract the host and path
+			else:
+				host = pathMatch.group(1)
+				path = pathMatch.group(2)
+		
+		# host, port, and path are specified
 		else:
 			host = portMatch.group(1)
 			port = int(portMatch.group(2))
 			path = portMatch.group(3)
 		
+		# TESTING
 		print "HOST: "+host
 		print "PORT: %d"%port
+		print "PATH: "+path
 		
 		return host, port, path	
 
-	# connects to a given host and returns a socket descriptor
+
+	# connects to a given host on a given port and returns a socket descriptor
 	def connect(self, host, port):
 		
 		# store the socket descriptor 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		
-		# get the ip address of a given remote host
-		(s, b, ip) = socket.gethostbyname_ex(host)
-		remote_ip = ip[0]
-		print remote_ip
+		# get the ip address of a given host
+		# alternative code:
+		#(hostname, aliaslist, ipaddrlist) = socket.gethostbyname_ex(host)
+		#remote_ip = ipaddrlist[0]
+		ip = socket.gethostbyname(host)
+		
 		# connect to ip on a given port
-		sock.connect((remote_ip, port))
-		print ("\nSocket connected to "+host+" (IP address: "+remote_ip+") on port %d\n" %port)
-
+		sock.connect((ip, port))
+		print ("\nSocket connected to "+host+" (IP address: "+ip+") on port %d\n" %port)
+		
+		# return socket descriptor
 		return sock
 		
-
+	
+	# returns the http status code given a string containing the server response
 	def get_code(self, data):
 		
-		# bad request code is default 
-		code = 400
+		# internal server error is default status code 
+		code = 500
+		
+		# extract the status code from the header
 		codeRE = re.compile('HTTP/1\.(0|1) (\d*) .*')
 		codeMatch = codeRE.match(data)
 		
 		if(not codeMatch):
-			print("Invalid header")
+			print("Response uses invalid syntax")
 		else:
 			code = int(codeMatch.group(2))
 		return code
 
+
 	def get_headers(self,data):
 		return None
+
 
 	def get_body(self, data):
 		return None
 
+
+	# TODO: get buffer to work
 	# read everything from the socket
 	def recvall(self,sock):
+		
 		data = sock.recv(1024)
+		
+		# print server response to stdout
 		print(data)
 		return data
 		
 		'''
 		buffer = bytearray()
 		done = False
-		
 		while not done:
+			print("START LOOP")
 			part = sock.recv(1024)
+			print("recieved")
 			if (part):
+				print("PART: "+part)
 				buffer.extend(part)
+				print("next")
 			else:
 				done = not part
-				
+				print("done = not part")
+		print("END LOOP")
 		return str(buffer)
 		'''
-		
+	
+	# send GET request to server	
 	def GET(self, url, args=None):
 		
 		(host, port, path) = self.get_host_port(url)
@@ -142,7 +179,7 @@ class HTTPClient(object):
 		
 		return HTTPRequest(code, body)
 
-	# TODO fix this
+	# TODO: send GET request to server
 	def POST(self, url, args=None):
 		return self.GET(url)
 		'''
@@ -160,6 +197,7 @@ class HTTPClient(object):
 
 	
 if __name__ == "__main__":
+	
 	client = HTTPClient()
 	command = "GET"
 	
@@ -174,11 +212,13 @@ if __name__ == "__main__":
 		url = sys.argv[2]
 		
 		http_request = client.command(url, request_type)
+		
+		# TESTING
 		print("\nHTTPRequest code: %d" %http_request.code)
 		print("\nHTTPRequest body: " + http_request.body + "\n")
 		
 	
-	# TODO fix this
+	# TODO: send args
 	# more than 2 args given
 	else:
 		help()
