@@ -49,6 +49,10 @@ class HTTPClient(object):
 		if (url[:7]=="http://"):
 			url = url[7:]
 			host = url
+		# TODO there must be a better way to do this...
+		if (url[:8]=="https://"):
+			url = url[8:]
+			host = url
 		
 		# separate the host port and path	
 		portRE = re.compile('(.*)\:(\d*)(.*)')
@@ -124,7 +128,17 @@ class HTTPClient(object):
 
 
 	def get_body(self, data):
-		return None
+		bodyRE = re.compile('(.*?)(\r\n\r\n.*)', flags = re.DOTALL)
+		bodyMatch = bodyRE.match(data)
+		
+		if(not bodyMatch):
+			print("I was wrong")
+		else:
+			data = bodyMatch.group(2)
+			print("I was right\n")
+		print data
+			
+		return data
 
 
 	# TODO: get buffer to work
@@ -171,7 +185,7 @@ class HTTPClient(object):
 		sock.sendall(message)
 		data = self.recvall(sock)
 		code = self.get_code(data)
-		body = data
+		body = self.get_body(data)
 		
 		# close the connection
 		sock.close
