@@ -128,18 +128,16 @@ class HTTPClient(object):
 
 
 	def get_body(self, data):
-		'''
-		bodyRE = re.compile('(.*?)(\<.*)', flags = re.DOTALL)
+		
+		bodyRE = re.compile('(.*?)(\r\n\r\n.*)', flags = re.DOTALL)
 		bodyMatch = bodyRE.match(data)
 		
 		if(not bodyMatch):
 			print("I was wrong")
-			data = ""
 		else:
 			data = bodyMatch.group(2)
 			print("I was right\n")
 		# print data
-		'''
 		return data
 
 
