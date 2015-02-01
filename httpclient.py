@@ -136,7 +136,7 @@ class HTTPClient(object):
 		else:
 			data = bodyMatch.group(2)
 			print("I was right\n")
-		print data
+		# print data
 			
 		return data
 
@@ -148,7 +148,7 @@ class HTTPClient(object):
 		data = sock.recv(1024)
 		
 		# print server response to stdout
-		print(data)
+		# print(data)
 		return data
 		
 		'''
@@ -169,6 +169,24 @@ class HTTPClient(object):
 		return str(buffer)
 		'''
 	
+	# connects to socket, sends message, recieves data, and closes connection
+	def send_message(self, host, port, message):
+		
+		# start a connection with the given host
+		sock = self.connect(host, port)
+		
+		# send message to host
+		print("Message sent: \n"+ message+"\n\n")
+		sock.sendall(message)
+		
+		data = self.recvall(sock)
+		
+		# close the connection
+		sock.close
+		print("\nSocket closed")
+		
+		return data
+	
 	# send GET request to server	
 	def GET(self, url, args=None):
 		
@@ -176,32 +194,44 @@ class HTTPClient(object):
 		
 		print("\nTry sending GET "+path+" to "+host+" on port %d"%port)
 		
-		# start a connection with the given host
-		sock = self.connect(host, port)
-		
-		# send message to host
 		message = ("GET "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\n\r\n"%port)
-		print("Message sent: \n"+ message+"\n\n")
-		sock.sendall(message)
-		data = self.recvall(sock)
+		
+		data = self.send_message(host, port, message)
+		
 		code = self.get_code(data)
 		body = self.get_body(data)
-		
-		# close the connection
-		sock.close
-		print("\nSocket closed")
 		
 		return HTTPRequest(code, body)
 
 	# TODO: send GET request to server
 	def POST(self, url, args=None):
-		return self.GET(url)
-		'''
-		code = 500
-		body = "post test"
+		
+		# TODO: maybe change this if format is different
+		(host, port, path) = self.get_host_port(url)
+		
+		print("\nTry sending POST "+path+" to "+host+" on port %d"%port)
+		message = ("POST "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\n"%port)
+		if (not args):
+			message = message + "\r\n"
+		else:
+			params = urllib.urlencode(args)
+			contentlength = len(str(params))
+		
+			message = message + ("Content-Length: %d\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n"%contentlength)
+			message = message + params
+			print "MESSAGE HERE : " + message
+		
+		data = self.send_message(host, port, message)
+		
+		code = self.get_code(data)
+		body = self.get_body(data)
+		
 		return HTTPRequest(code, body)
+		''' 
+		return self.GET(url)
+		
 		'''
-
+		
 	# send to GET or POST function, depending on command
 	def command(self, url, command="GET", args=None):
 		if (command == "POST"):
@@ -236,6 +266,7 @@ if __name__ == "__main__":
 	# more than 2 args given
 	else:
 		help()
+		print "blah"
 		sys.exit(1)
 		#print client.command( command, sys.argv[1] )
 		#print (command, sys.argv[1])	
