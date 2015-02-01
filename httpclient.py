@@ -128,16 +128,18 @@ class HTTPClient(object):
 
 
 	def get_body(self, data):
-		bodyRE = re.compile('(.*?)(\r\n\r\n.*)', flags = re.DOTALL)
+		'''
+		bodyRE = re.compile('(.*?)(\<.*)', flags = re.DOTALL)
 		bodyMatch = bodyRE.match(data)
 		
 		if(not bodyMatch):
 			print("I was wrong")
+			data = ""
 		else:
 			data = bodyMatch.group(2)
 			print("I was right\n")
 		# print data
-			
+		'''
 		return data
 
 
@@ -146,6 +148,13 @@ class HTTPClient(object):
 	def recvall(self,sock):
 		
 		data = sock.recv(1024)
+		newData = sock.recv(1024)
+		while (newData):
+			#print "DATA "+ data
+			#print "NEW DATA: "+newData
+			data = data + newData
+			#print "ALL DATA: "+data
+			newData = sock.recv(1024)
 		
 		# print server response to stdout
 		# print(data)
@@ -168,6 +177,7 @@ class HTTPClient(object):
 		print("END LOOP")
 		return str(buffer)
 		'''
+		
 	
 	# connects to socket, sends message, recieves data, and closes connection
 	def send_message(self, host, port, message):
@@ -182,7 +192,7 @@ class HTTPClient(object):
 		data = self.recvall(sock)
 		
 		# close the connection
-		sock.close
+		sock.close()
 		print("\nSocket closed")
 		
 		return data
@@ -194,7 +204,8 @@ class HTTPClient(object):
 		
 		print("\nTry sending GET "+path+" to "+host+" on port %d"%port)
 		
-		message = ("GET "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\n\r\n"%port)
+		# TODO: find out if connection: close is correct
+		message = ("GET "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\nConnection: close\r\n\r\n"%port)
 		
 		data = self.send_message(host, port, message)
 		
