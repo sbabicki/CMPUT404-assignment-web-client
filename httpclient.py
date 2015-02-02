@@ -25,9 +25,10 @@ import re
 import urllib
 import re
 
-# message for too many args
+# message for no args
 def help():
 	print "httpclient.py [GET/POST] [URL]\n"
+
 
 class HTTPRequest(object):
 	def __init__(self, code=200, body=""):
@@ -49,7 +50,7 @@ class HTTPClient(object):
 		if (url[:7]=="http://"):
 			url = url[7:]
 			host = url
-		# TODO there must be a better way to do this...
+		# optional TODO: there must be a better way to do this...
 		if (url[:8]=="https://"):
 			url = url[8:]
 			host = url
@@ -79,9 +80,9 @@ class HTTPClient(object):
 			path = portMatch.group(3)
 		
 		# TESTING
-		print "HOST: "+host
-		print "PORT: %d"%port
-		print "PATH: "+path
+		# print "HOST: "+host
+		# print "PORT: %d"%port
+		# print "PATH: "+path
 		
 		return host, port, path	
 
@@ -94,13 +95,16 @@ class HTTPClient(object):
 		
 		# get the ip address of a given host
 		# alternative code:
-		#(hostname, aliaslist, ipaddrlist) = socket.gethostbyname_ex(host)
-		#remote_ip = ipaddrlist[0]
+		# (hostname, aliaslist, ipaddrlist) = socket.gethostbyname_ex(host)
+		# remote_ip = ipaddrlist[0]
 		ip = socket.gethostbyname(host)
 		
 		# connect to ip on a given port
 		sock.connect((ip, port))
-		print ("\nSocket connected to "+host+" (IP address: "+ip+") on port %d\n" %port)
+		
+		# TESTING
+		# print ("\nSocket connected to "+host)
+		# print (" (IP address: "+ip+") on port %d\n" %port)
 		
 		# return socket descriptor
 		return sock
@@ -116,65 +120,50 @@ class HTTPClient(object):
 		codeRE = re.compile('HTTP/1\.(0|1) (\d*) .*')
 		codeMatch = codeRE.match(data)
 		
-		if(not codeMatch):
-			print("Response uses invalid syntax")
-		else:
+		if(codeMatch):
 			code = int(codeMatch.group(2))
+			
 		return code
 
 
+	# returns the content before \r\n\r\n
 	def get_headers(self,data):
-		return None
+		
+		headerRE = re.compile('(.*?)(\r\n\r\n.*)', flags = re.DOTALL)
+		headerMatch = headerRE.match(data)
+		
+		if(headerMatch):
+			data = headerMatch.group(1)
+		
+		return data
 
-
+	
+	# returns the content after \r\n\r\n
 	def get_body(self, data):
 		
 		bodyRE = re.compile('(.*?)(\r\n\r\n.*)', flags = re.DOTALL)
 		bodyMatch = bodyRE.match(data)
 		
-		if(not bodyMatch):
-			print("I was wrong")
-		else:
+		if(bodyMatch):
 			data = bodyMatch.group(2)
-			print("I was right\n")
-		# print data
+			
 		return data
 
 
-	# TODO: get buffer to work
-	# read everything from the socket
+	# reads and returns everything from the socket
 	def recvall(self,sock):
-		
-		data = sock.recv(1024)
-		newData = sock.recv(1024)
-		while (newData):
-			#print "DATA "+ data
-			#print "NEW DATA: "+newData
-			data = data + newData
-			#print "ALL DATA: "+data
-			newData = sock.recv(1024)
-		
-		# print server response to stdout
-		# print(data)
-		return data
-		
-		'''
+	
 		buffer = bytearray()
 		done = False
+		
 		while not done:
-			print("START LOOP")
 			part = sock.recv(1024)
-			print("recieved")
 			if (part):
-				print("PART: "+part)
 				buffer.extend(part)
-				print("next")
 			else:
 				done = not part
-				print("done = not part")
-		print("END LOOP")
+
 		return str(buffer)
-		'''
 		
 	
 	# connects to socket, sends message, recieves data, and closes connection
@@ -183,63 +172,76 @@ class HTTPClient(object):
 		# start a connection with the given host
 		sock = self.connect(host, port)
 		
+		# TESTING
+		# print("Message sent: \n"+ message+"\n\n")
+		
 		# send message to host
-		print("Message sent: \n"+ message+"\n\n")
 		sock.sendall(message)
 		
+		# receive data from the host
 		data = self.recvall(sock)
 		
 		# close the connection
 		sock.close()
-		print("\nSocket closed")
+		
+		# TESTING
+		# print("\nSocket closed")
 		
 		return data
+	
 	
 	# send GET request to server	
 	def GET(self, url, args=None):
 		
 		(host, port, path) = self.get_host_port(url)
 		
-		print("\nTry sending GET "+path+" to "+host+" on port %d"%port)
+		# TESTING
+		# print("\nTry sending GET "+path+" to "+host+" on port %d"%port)
 		
 		# TODO: find out if connection: close is correct
 		message = ("GET "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\nConnection: close\r\n\r\n"%port)
 		
 		data = self.send_message(host, port, message)
 		
+		# retrieve the status code and body of the response
 		code = self.get_code(data)
 		body = self.get_body(data)
 		
 		return HTTPRequest(code, body)
 
-	# TODO: send GET request to server
+
+	# send POST request to server
 	def POST(self, url, args=None):
 		
-		# TODO: maybe change this if format is different
 		(host, port, path) = self.get_host_port(url)
 		
-		print("\nTry sending POST "+path+" to "+host+" on port %d"%port)
+		# TESTING
+		# print("\nTry sending POST "+path+" to "+host+" on port %d"%port)
+		
+		# default 
 		message = ("POST "+path+" HTTP/1.1\r\nHost: "+host+":%d\r\n"%port)
+		
+		# if no args are specified - should never happen
 		if (not args):
-			message = message + "\r\n"
+			message = message + "Connection: close\r\n\r\n"
+		
+		# when args are specified
 		else:
 			params = urllib.urlencode(args)
+			
+			# get the length of the content to send
 			contentlength = len(str(params))
 		
 			message = message + ("Content-Length: %d\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n"%contentlength)
 			message = message + params
-			print "MESSAGE HERE : " + message
-		
+			
 		data = self.send_message(host, port, message)
 		
 		code = self.get_code(data)
 		body = self.get_body(data)
 		
 		return HTTPRequest(code, body)
-		''' 
-		return self.GET(url)
 		
-		'''
 		
 	# send to GET or POST function, depending on command
 	def command(self, url, command="GET", args=None):
@@ -265,20 +267,15 @@ if __name__ == "__main__":
 		url = sys.argv[2]
 		
 		http_request = client.command(url, request_type)
-		
-		# TESTING
-		print("\nHTTPRequest code: %d" %http_request.code)
-		print("\nHTTPRequest body: " + http_request.body + "\n")
-		
 	
-	# TODO: send args
-	# more than 2 args given
+	# 1 arg given
 	else:
-		help()
-		print "blah"
-		sys.exit(1)
-		#print client.command( command, sys.argv[1] )
-		#print (command, sys.argv[1])	
+		url = sys.argv[1]
+		http_request = client.command(url, command)
+		
+	# TESTING
+	print("\nHTTPRequest code: %d" %http_request.code)
+	print("\nHTTPRequest body: " + http_request.body + "\n")
 	
 	
 	
