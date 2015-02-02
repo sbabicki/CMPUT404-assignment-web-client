@@ -18,6 +18,11 @@
 # Write your own HTTP GET and POST
 # The point is to understand what you have to send and get experience with it
 
+#
+# File edited by Sasha Babicki (CCID: babicki)
+# See README.md for more info
+#
+
 import sys
 import socket
 import re
@@ -274,8 +279,8 @@ if __name__ == "__main__":
 		http_request = client.command(url, command)
 		
 	# TESTING
-	print("\nHTTPRequest code: %d" %http_request.code)
-	print("\nHTTPRequest body: " + http_request.body + "\n")
+	# print("\nHTTPRequest code: %d" %http_request.code)
+	print("\nHTTPRequest body:\n" + http_request.body + "\n")
 	
 	
 	
